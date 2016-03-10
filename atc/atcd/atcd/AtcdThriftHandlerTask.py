@@ -113,7 +113,9 @@ class AtcdThriftHandlerTask(ThriftHandlerTask):
     ID_MANAGER_ID_MAX = 2**16
 
     MODULE = Atcd
-    DEPS = [AtcdDBQueueTask]
+    DEPS = [
+        AtcdDBQueueTask,
+    ]
     DEFAULT_LAN = 'eth1'
     DEFAULT_WAN = 'eth0'
     DEFAULT_IPTABLES = '/sbin/iptables'
@@ -221,6 +223,7 @@ class AtcdThriftHandlerTask(ThriftHandlerTask):
         # Do this first because it can error out and it's better to
         # error out before touching the networking stacks
         self.db_task = self.service.tasks.AtcdDBQueueTask
+        self.exabgp_task = self.service.getTask('AtcdExabgpTask')
 
         self.lan = {'name': self.lan_name}
         self.wan = {'name': self.wan_name}
@@ -300,6 +303,15 @@ class AtcdThriftHandlerTask(ThriftHandlerTask):
                     (tc.device.controlledIP, 'remove_shaping')
                 )
 
+    def _update_exabgp(self):
+        """
+        Calls `execute` on the AtcdExabgpTask if it was enabled.
+        """
+        if self.exabgp_task is not None:
+            self.exabgp_task.execute()
+        else:
+            self.logger.debug('Exabgp not enabled, skipping update')
+
     def stop(self):
         """Implements sparts.vtask.VTask.stop()
 
@@ -331,6 +343,15 @@ class AtcdThriftHandlerTask(ThriftHandlerTask):
         sh.setLevel(logging.DEBUG)
         sh.setFormatter(fmt=fmt)
         self.logger.addHandler(sh)
+
+    def getShapedIps(self):
+        """Get the list of shaped ips
+
+        Returns:
+            A list of shaped ips
+        """
+        self.logger.info("Request getShapedIps")
+        return self._current_shapings.keys()
 
     def getShapedDeviceCount(self):
         """Get the number of devices currently being shaped.
@@ -432,6 +453,7 @@ class AtcdThriftHandlerTask(ThriftHandlerTask):
             del self._id_to_ip_map[old_id]
             self.idmanager.free(old_id)
 
+        self._update_exabgp()
         return TrafficControlRc(code=ReturnCode.OK)
 
     @AccessCheck
@@ -483,6 +505,8 @@ class AtcdThriftHandlerTask(ThriftHandlerTask):
             return TrafficControlRc(
                 code=ReturnCode.UNKNOWN_SESSION,
                 message="No session for IP {} found".format(dev.controlledIP))
+
+        self._update_exabgp()
         return TrafficControlRc(code=ReturnCode.OK)
 
     def _unshape_interface(self, mark, eth, ip, settings):

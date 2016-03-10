@@ -16,16 +16,10 @@ from __future__ import print_function
 import sys
 
 # AtcdHandler main class
-from atcd.AtcdDeviceTimeoutTask import AtcdDeviceTimeoutTask
-from atcd.AtcdThriftHandlerTask import AtcdNBServerTask
-from atcd.AtcdThriftHandlerTask import AtcdThriftHandlerTask
 from atcd.AtcdVService import AtcdVService
 
 
 def initialize_thrift():
-    AtcdNBServerTask.register()
-    AtcdThriftHandlerTask.factory().register()
-    AtcdDeviceTimeoutTask.register()
 
     AtcdVService.initFromCLI()
 
