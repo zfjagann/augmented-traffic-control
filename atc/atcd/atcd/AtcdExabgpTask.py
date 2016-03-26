@@ -57,6 +57,7 @@ class AtcdExabgpTask(PeriodicTask):
             self.logger.info(
                 'Moving %s to %s' % (tmpfile.name, self.exabgp_file)
             )
+            os.chmod(tmpfile.name, 0644)
             os.rename(tmpfile.name, self.exabgp_file)
         except Exception:
             # log failure to update exabgp but don't do anything about it.
